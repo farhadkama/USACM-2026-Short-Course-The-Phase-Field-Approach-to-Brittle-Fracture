@@ -1,0 +1,2 @@
+# USACM-2026-Short-Course-The-Phase-Field-Approach-to-Brittle-Fracture
+Companion repository for the USACM 2026 short course “The Phase-Field Approach to Brittle Fracture: Theory and Numerical Implementation”. Contains step-by-step FEniCSx Jupyter notebooks (AT1 and phase-field implementations) for single-edge-notch fracture simulations, plus installation guides and Google Colab-friendly workflows.
