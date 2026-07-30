@@ -1,7 +1,7 @@
-# USACM 2026 Short Course  
-## The Phase-Field Approach to Brittle Fracture: Theory and Numerical Implementation
+## U.S. Association for Computational Mechanics (USACM) 2026 Short Course  
+# The Phase-Field Approach to Brittle Fracture: Theory and Numerical Implementation
 
-Welcome to the companion repository for the USACM 2026 short course **“The Phase-Field Approach to Brittle Fracture: Theory and Numerical Implementation.”**
+Welcome to the companion repository for the USACM 2026 short course: **“The Phase-Field Approach to Brittle Fracture: Theory and Numerical Implementation.”**
 
 ---
 
@@ -27,15 +27,24 @@ These notebooks are designed to:
 
 ### 🛠️ Installation Guide
 
-**📁 [`installation-guide/FEniCSx_Installation_Guide.pdf`](installation-guide/FEniCSx_Installation_Guide.pdf)**
+We provide the installation guide in two formats:
 
-A comprehensive installation guide covering:
-- FEniCSx installation on Windows 11 using Docker
-- FEniCSx installation on macOS using Conda
+- **PDF:**  
+  [`installation-guide/FEniCSx_Installation_Guide.pdf`](installation-guide/FEniCSx_Installation_Guide.pdf)
+
+- **Markdown (AI/agent-readable):**   
+  [`installation-guide/FEniCSx_Installation_Guide.md`](installation-guide/FEniCSx_Installation_Guide.md)
+
+The guide covers:
+- FEniCSx installation on **Windows 11** using Docker
+- FEniCSx installation on **macOS** using Conda
+- **ParaView** installation for post-processing and visualization
 
 > **Note:** You do **not** need to install FEniCSx to run the notebooks in this repository.  
 > You can run them directly in **Google Colab** by clicking the **“Open in Colab”** badges above,  
-> or by opening the notebook files manually in your own Google account via [Google Colab](https://colab.research.google.com/).
+> or by opening notebook files in your own Google account via [Google Colab](https://colab.research.google.com/).
+
+---
 
 ---
 
