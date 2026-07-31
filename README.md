@@ -78,7 +78,7 @@ An educational repository focused on learning phase-field modeling from fundamen
 
 ### Benchmark Problems Repository
 **[FEniCSx_Kamarei_Lopez-Pamies](https://github.com/farhadkama/FEniCSx_Kamarei_Lopez-Pamies)**  
-A specialized repository containing benchmark problems and advanced modeling approaches [2].
+A specialized repository containing benchmark problems and advanced modeling approaches [3].
 
 ---
 
