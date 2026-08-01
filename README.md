@@ -14,7 +14,7 @@ This repository includes two primary Jupyter notebooks for single-edge notch tes
 1. **AT1 Model Implementation**  
    [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/farhadkama/USACM-2026-Short-Course-The-Phase-Field-Approach-to-Brittle-Fracture/blob/main/codes/Single_edge_notch_test_at1.ipynb)
 
-2. **Phase-Field Model Implementation**  
+2. **Complete Phase-Field Model Implementation**  
    [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/farhadkama/USACM-2026-Short-Course-The-Phase-Field-Approach-to-Brittle-Fracture/blob/main/codes/Single_edge_notch_test_phasefield.ipynb)
 
 These notebooks are designed to:
