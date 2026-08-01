@@ -98,4 +98,4 @@ You may also reach out to my Ph.D. advisor:
 
 [2] Kamarei, F., Kumar, A., Lopez-Pamies, O. (2024). *The poker-chip experiments of synthetic elastomers explained*. Journal of the Mechanics and Physics of Solids, 188, 105683. [PDF](http://pamies.cee.illinois.edu/assets/pdf/CMAME2026.pdf)
 
-[3] Kamarei, F., Zeng, B., Dolbow, J.E., Lopez-Pamies, O. (2026). *Nine circles of elastic brittle fracture: A series of challenge problems to assess fracture models*. Computer Methods in Applied Mechanics and Engineering, 448, 118449. [PDF](http://pamies.cee.illinois.edu/Publications_files/CMAME2026.pdf)
+[3] Kamarei, F., Zeng, B., Dolbow, J.E., Lopez-Pamies, O. (2026). *Nine circles of elastic brittle fracture: A series of challenge problems to assess fracture models*. Computer Methods in Applied Mechanics and Engineering, 448, 118449. [PDF](http://pamies.cee.illinois.edu/assets/pdf/CMAME2026.pdf)
