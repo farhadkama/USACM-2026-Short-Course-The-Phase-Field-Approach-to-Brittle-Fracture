@@ -126,8 +126,13 @@ domain = mesh_data[0]
 
 with dolfinx.io.XDMFFile(domain.comm, "refined_mesh.xdmf", "w") as xdmf:
     xdmf.write_mesh(domain)
-with io.XDMFFile(domain.comm, "paraview/2DCTS.xdmf", "w") as file_results:
-    file_results.write_mesh(domain)
+
+if model_type == "AT1":
+    with io.XDMFFile(domain.comm, "AT1/paraview/2DCTS.xdmf", "w") as file_results:
+        file_results.write_mesh(domain)
+elif model_type == "Complete_model":
+    with io.XDMFFile(domain.comm, "Complete_model/paraview/2DCTS.xdmf", "w") as file_results:
+        file_results.write_mesh(domain)
 
 
 # Defining the function spaces
@@ -312,7 +317,11 @@ ce = alpha2*SQJ2 + alpha1*I1 - z*(1-ufl.sqrt(I1**2)/I1)*psi11
 pen=1000*(3*Gc/8/eps)*ufl.conditional(ufl.lt(delta,1),1, delta)
 Wv=pen/2*((abs(z)-z)**2 + (abs(1-z) - (1-z))**2 )*dx
 
-R_z = y*2*z*(psi11)*dx + y*(ce)*dx + 3*delta*Gc/8*(-y/eps + 2*eps*ufl.inner(ufl.grad(z),ufl.grad(y)))*dx + ufl.derivative(Wv,z,y)
+
+if model_type == "AT1":
+    R_z = y*2*z*(psi11)*dx + 3*Gc/8*(-y/eps + 2*eps*ufl.inner(ufl.grad(z),ufl.grad(y)))*dx + ufl.derivative(Wv,z,y)
+elif model_type == "Complete_model":
+    R_z = y*2*z*(psi11)*dx + y*(ce)*dx + 3*delta*Gc/8*(-y/eps + 2*eps*ufl.inner(ufl.grad(z),ufl.grad(y)))*dx + ufl.derivative(Wv,z,y)
 
 # Compute Jacobian of R_z
 Jac_z = ufl.derivative(R_z, z, dz)
@@ -472,8 +481,12 @@ while t-stepsize < T:
     if comm_rank==0:
         print(Fx)
         print(z_x)
-        with open('Glass_CTS.txt', 'a') as rfile:
-            rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(Fx)))
+        if model_type == "AT1":
+            with open('AT1/Glass_CTS.txt', 'a') as rfile:
+                rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(Fx)))
+        elif model_type == "Complete_model":
+            with open('Complete_model/Glass_CTS.txt', 'a') as rfile:
+                rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(Fx)))
 
     if step % printsteps==0:
         file_results.write_function(u, t)
