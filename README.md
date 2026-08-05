@@ -96,6 +96,6 @@ You may also reach out to my Ph.D. advisor:
 
 [1] Kumar, A., Francfort, G.A., Lopez-Pamies, O. (2018). *Fracture and healing of elastomers: A phase-transition theory and numerical implementation*. Journal of the Mechanics and Physics of Solids, 112, 523–551. [PDF](http://pamies.cee.illinois.edu/assets/pdf/JMPS2018.pdf)
 
-[2] Kamarei, F., Kumar, A., Lopez-Pamies, O. (2024). *The poker-chip experiments of synthetic elastomers explained*. Journal of the Mechanics and Physics of Solids, 188, 105683. [PDF](http://pamies.cee.illinois.edu/assets/pdf/CMAME2026.pdf)
+[2] Kamarei, F., Kumar, A., Lopez-Pamies, O. (2024). *The poker-chip experiments of synthetic elastomers explained*. Journal of the Mechanics and Physics of Solids, 188, 105683. [PDF](http://pamies.cee.illinois.edu/assets/pdf/JMPS2024b.pdf)
 
 [3] Kamarei, F., Zeng, B., Dolbow, J.E., Lopez-Pamies, O. (2026). *Nine circles of elastic brittle fracture: A series of challenge problems to assess fracture models*. Computer Methods in Applied Mechanics and Engineering, 448, 118449. [PDF](http://pamies.cee.illinois.edu/assets/pdf/CMAME2026.pdf)

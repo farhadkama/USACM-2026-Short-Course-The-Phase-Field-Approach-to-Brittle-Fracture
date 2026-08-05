@@ -133,6 +133,8 @@ if model_type == "AT1":
 elif model_type == "Complete_model":
     with io.XDMFFile(domain.comm, "Complete_model/paraview/2DCTS.xdmf", "w") as file_results:
         file_results.write_mesh(domain)
+else:
+    raise ValueError("Invalid model_type. Choose either 'AT1' or 'Complete_model'.")
 
 
 # Defining the function spaces
@@ -322,6 +324,8 @@ if model_type == "AT1":
     R_z = y*2*z*(psi11)*dx + 3*Gc/8*(-y/eps + 2*eps*ufl.inner(ufl.grad(z),ufl.grad(y)))*dx + ufl.derivative(Wv,z,y)
 elif model_type == "Complete_model":
     R_z = y*2*z*(psi11)*dx + y*(ce)*dx + 3*delta*Gc/8*(-y/eps + 2*eps*ufl.inner(ufl.grad(z),ufl.grad(y)))*dx + ufl.derivative(Wv,z,y)
+else:
+    raise ValueError("Invalid model_type. Choose either 'AT1' or 'Complete_model'.")
 
 # Compute Jacobian of R_z
 Jac_z = ufl.derivative(R_z, z, dz)
@@ -366,11 +370,11 @@ class NonlinearPDEProblem:
 
 
 # Define maximum displacement
-disp_max = L*0.0002
+disp_max = L*0.00018
 # time-stepping parameters
 
 T=1
-Totalsteps= 500
+Totalsteps= 100
 startstepsize=1/Totalsteps
 stepsize=startstepsize
 t=stepsize
@@ -475,7 +479,7 @@ while t-stepsize < T:
 
     # Calculate Reaction
 
-    Fx=domain.comm.allreduce(np.sum(b_e[y_dofs_top]), op=MPI.SUM)
+    Fx=domain.comm.allreduce(np.sum(fint[y_dofs_top]), op=MPI.SUM)
     z_x = evaluate_function(z, (ac+eps,0.0))[0]
 
     if comm_rank==0:
@@ -483,10 +487,12 @@ while t-stepsize < T:
         print(z_x)
         if model_type == "AT1":
             with open('AT1/Glass_CTS.txt', 'a') as rfile:
-                rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(Fx)))
+                rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(-Fx)))
         elif model_type == "Complete_model":
             with open('Complete_model/Glass_CTS.txt', 'a') as rfile:
                 rfile.write("%s %s %s %s\n" % (str(t), str(zmin), str(z_x), str(Fx)))
+        else:
+            raise ValueError("Invalid model_type. Choose either 'AT1' or 'Complete_model'.")
 
     if step % printsteps==0:
         file_results.write_function(u, t)
