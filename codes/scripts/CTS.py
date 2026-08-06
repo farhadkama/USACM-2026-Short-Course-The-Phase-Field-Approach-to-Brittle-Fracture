@@ -15,7 +15,7 @@ import gmsh
 
 ### Here, we choose the model: for AT1 model, we set the model_type to "AT1", and for the complete phase-field model, we set the model_type to "Complete_model". The default is set to "Complete_model" model.
 
-model_type = "Complete_model"  # Choose between "AT1" and "Complete_model"
+model_type = "AT1"  # Choose between "AT1" and "Complete_model"
 
 
 
@@ -370,7 +370,7 @@ class NonlinearPDEProblem:
 
 
 # Define maximum displacement
-disp_max = L*0.00018
+disp_max = L*0.00019
 # time-stepping parameters
 
 T=1
