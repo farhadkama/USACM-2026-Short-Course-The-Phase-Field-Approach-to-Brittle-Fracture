@@ -39,9 +39,19 @@ log.set_log_level(log.LogLevel.ERROR)
 #Geometry of the specimen
 W, L = 25.0, 25.0
 
-partitioner = dolfinx.cpp.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
-mesh_data = io.gmshio.read_from_msh("Inden2D.msh", MPI.COMM_WORLD, gdim=2, partitioner=partitioner)
+
+# check if Inden2D.msh exists
+if not os.path.exists("Inden2D.msh"):
+    raise FileNotFoundError("Inden2D.msh not found. Please download the mesh from the nine circles of elastic brittle fracture repository.")
+
+partitioner = dolfinx.cpp.mesh.create_cell_partitioner(mesh.GhostMode.shared_facet, None)
+mesh_data = io.gmsh.read_from_msh("Inden2D.msh", MPI.COMM_WORLD, gdim=2, partitioner=partitioner)
 domain = mesh_data[0]
+
+
+
+
+
 
 domain.topology.create_connectivity(domain.topology.dim, domain.topology.dim)
 domain.topology.create_connectivity(domain.topology.dim-1, domain.topology.dim)
