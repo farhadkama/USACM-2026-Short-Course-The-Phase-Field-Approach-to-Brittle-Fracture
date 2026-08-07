@@ -10,6 +10,7 @@ from petsc4py.PETSc import ScalarType
 from petsc4py import PETSc
 import time
 import os
+import gmsh
 log.set_log_level(log.LogLevel.WARNING)
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -63,30 +64,82 @@ ac += L1
 
 
 
-###########################################
+gmsh.initialize()
+    
+gmsh.model.add("DCB")
 
 
-partitioner = dolfinx.cpp.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
-mesh_data = io.gmshio.read_from_msh("dcb2D.msh", MPI.COMM_WORLD, gdim=2, partitioner=partitioner)
+# Create outer box
+block = gmsh.model.occ.addRectangle(0, 0, 0, L, H)
+
+# Create inner cylinder (same axis, smaller radius)
+inner_cyl = gmsh.model.occ.addDisk(x_cyl, y_cyl, 0, r_cyl, r_cyl)
+
+# Cut inner cylinder from outer cylinder to form a tube
+dcb, _ = gmsh.model.occ.cut([(2, block)], [(2, inner_cyl)])
+
+# Synchronize to reflect the changes in the model
+gmsh.model.occ.synchronize()
+
+# Add physical group for the volume (the tube itself)
+dcb_volumes = [entity[1] for entity in dcb]
+dcb_group = gmsh.model.addPhysicalGroup(2, dcb_volumes)
+gmsh.model.setPhysicalName(2, dcb_group, "dcbVolume")
+
+
+# Define mesh size fields
+field_id = gmsh.model.mesh.field.add("Box")
+gmsh.model.mesh.field.setNumber(field_id, "VIn", h)
+gmsh.model.mesh.field.setNumber(field_id, "VOut", 4 * h)
+gmsh.model.mesh.field.setNumber(field_id, "XMin", ac - 2*eps)
+gmsh.model.mesh.field.setNumber(field_id, "XMax", L)
+gmsh.model.mesh.field.setNumber(field_id, "YMin",0)
+gmsh.model.mesh.field.setNumber(field_id, "YMax", H/3)
+
+
+
+field2_id = gmsh.model.mesh.field.add("Box")
+gmsh.model.mesh.field.setNumber(field2_id, "VIn", 2 * h)
+gmsh.model.mesh.field.setNumber(field2_id, "VOut", 4 * h)
+gmsh.model.mesh.field.setNumber(field2_id, "XMin", 0)
+gmsh.model.mesh.field.setNumber(field2_id, "XMax", L)
+gmsh.model.mesh.field.setNumber(field2_id, "YMin", 0)
+gmsh.model.mesh.field.setNumber(field2_id, "YMax", H/2)
+
+
+field3_id = gmsh.model.mesh.field.add("Box")
+gmsh.model.mesh.field.setNumber(field3_id, "VIn", 2* h)
+gmsh.model.mesh.field.setNumber(field3_id, "VOut", 4 * h)
+gmsh.model.mesh.field.setNumber(field3_id, "XMin", x_cyl - 1.1*r_cyl)
+gmsh.model.mesh.field.setNumber(field3_id, "XMax", x_cyl + 1.1*r_cyl)
+gmsh.model.mesh.field.setNumber(field3_id, "YMin", y_cyl - 1.1*r_cyl)
+gmsh.model.mesh.field.setNumber(field3_id, "YMax", y_cyl + 1.1*r_cyl)
+
+
+
+
+# Combine the fields
+min_field_id = gmsh.model.mesh.field.add("Min")
+gmsh.model.mesh.field.setNumbers(min_field_id, "FieldsList", [field_id, field2_id, field3_id])
+gmsh.model.mesh.field.setAsBackgroundMesh(min_field_id)
+
+
+# Generate and optimize the mesh
+gmsh.model.mesh.generate(2)
+gmsh.model.mesh.optimize("Netgen")
+
+
+model = MPI.COMM_WORLD.bcast(gmsh.model, root=0)
+partitioner = dolfinx.cpp.mesh.create_cell_partitioner(mesh.GhostMode.shared_facet, None)
+mesh_data = io.gmsh.model_to_mesh(model, MPI.COMM_WORLD, 0, gdim=2, partitioner=partitioner)
+
+
+gmsh.finalize()
 domain = mesh_data[0]
 
-domain.topology.create_connectivity(domain.topology.dim, domain.topology.dim)
-domain.topology.create_connectivity(domain.topology.dim-1, domain.topology.dim)
-domain.topology.create_connectivity(domain.topology.dim, domain.topology.dim-1)
-domain.topology.create_connectivity(domain.topology.dim-1, domain.topology.dim-1)
-domain.topology.create_connectivity(0, domain.topology.dim)
 
-
-xdmf = dolfinx.io.XDMFFile(domain.comm, "read_mesh.xdmf", "w")
-xdmf.write_mesh(domain)
-xdmf.close()
-
-num_nodes = domain.topology.index_map(0).size_local
-num_nodes_ghost = domain.topology.index_map(0).num_ghosts
-
-
-# Print rank, num_nodes, and num_nodes_ghost
-print(f"Rank {rank}: num_nodes = {num_nodes}, num_nodes_ghost = {num_nodes_ghost}")
+with dolfinx.io.XDMFFile(domain.comm, "refined_mesh_DCB.xdmf", "w") as xdmf:
+    xdmf.write_mesh(domain)
 
 
 
@@ -403,7 +456,8 @@ startstepsize=T/Totalsteps
 stepsize=startstepsize
 t=stepsize
 step=1
-rtol=1e-9
+rnorm_stag0 = 1
+rnorm_stag = 1
 printsteps = 100
 printsteps2 = 1
 
@@ -458,56 +512,48 @@ while t-stepsize < T:
     if comm_rank==0:
         print('Step= %d' %step, 't= %f' %t, 'Stepsize= %e' %stepsize)
 
-    # do something about
+
     bct.g.value[...] = ScalarType(t/T*maxdisp)
 
     stag_iter = 1
-    norm_delu = 1
-    norm_delz = 1
-    while stag_iter<100 and (norm_delu > 1e-5 or norm_delz > 1e-5):
+    stag_iter = 1
+    rnorm_stag = 1
+    while stag_iter<100 and rnorm_stag/rnorm_stag0 > 1e-7:
         start_time=time.time()
         ##############################################################
         # PDE for u
         ##############################################################
-        if rank==0:
-            print(f"solving for u in u-z staggered number {stag_iter}:")
-        #converged_u, _ = problem_u.solve(solver_u)
-        n_u, converged_u = solver.solve(u)
-        if rank==0:
-            print(f"Newton iterations: {n_u}, Converged?: {converged_u}")
+        u_copy = u.x.petsc_vec.copy()
+        u_copy.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        solver.solve(None, u_copy)
         u.x.scatter_forward()
         ##############################################################
         # PDE for z
         ##############################################################
-        if rank==0:
-            print(f"solving for z in u-z staggered number {stag_iter}:")
-        converged_z, _ = problem_z.solve(solver_z)
+        z_copy = z.x.petsc_vec.copy()
+        z_copy.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        solver_z.solve(None, z_copy)
         z.x.scatter_forward()
         ##############################################################
 
         zmin = domain.comm.allreduce(np.min(z.x.array), op=MPI.MIN)
-
-
-        if rank==0:
+        
+        
+        if comm_rank==0:
             print(zmin)
 
-        if rank==0:
+        if comm_rank==0:
             print("--- %s seconds ---" % (time.time() - start_time))
 
         ###############################################################
         #Residual check for stag loop
         ###############################################################
+        b_e = fem.petsc.assemble_vector(fem.form(-R))
+        fint=b_e.copy()
+        fem.petsc.set_bc(b_e, bcs, u.x.petsc_vec, -1.0)
 
+        rnorm_stag=b_e.norm()
 
-        error_u.x.array[:] = u.x.array - u_prev.x.array
-        norm_delu = norm_L2(comm, error_u)/norm_L2(comm, u_prev)
-
-        error_z.x.array[:] = z.x.array - z_prev.x.array
-        norm_delz = norm_L2(comm, error_z)/norm_L2(comm, z_prev)
-
-        if rank==0:
-            print("Staggered Iteration after the whole u-z for u: {}, Norm = {}".format(stag_iter, norm_delu))
-            print("Staggered Iteration after the whole u-z for z: {}, Norm = {}".format(stag_iter, norm_delz))
 
         u_prev.x.array[:] = u.x.array
         z_prev.x.array[:] = z.x.array
@@ -521,10 +567,10 @@ while t-stepsize < T:
 
     # Calculate Reaction
 
-    Fx=domain.comm.allreduce(np.sum(problem_u.get_reaction_forces(dofs_ring1)), op=MPI.SUM)
+    Fx = -domain.comm.allreduce(np.sum(fint[dofs_ring1]), op=MPI.SUM)
+    
     z_x = evaluate_function(z, (ac + eps, 0))[0]
 
-    max_energy2, max_position2 = find_max_energy2(W0, V_points, u, z, my_geom_condition, tolerance=1e-9)
 
 
     if rank==0:
