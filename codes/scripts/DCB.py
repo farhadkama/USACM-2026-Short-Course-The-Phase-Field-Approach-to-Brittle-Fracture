@@ -7,14 +7,18 @@ import dolfinx.fem.petsc
 import ufl
 import numpy as np
 from petsc4py.PETSc import ScalarType
+import os
+base_dir = os.getcwd()
+output_dir = os.path.join(base_dir, "Files_DCB")
+paraview_dir = os.path.join(output_dir, "Paraview")
+os.makedirs(paraview_dir, exist_ok=True)
 from petsc4py import PETSc
 import time
-import os
 import gmsh
 log.set_log_level(log.LogLevel.WARNING)
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-size = comm.Get_size()
+        
 
 
 # Material properties
@@ -445,7 +449,7 @@ class NonlinearPDEProblem:
 
 # time-stepping parameters
 ldot = 5*10**(-1)
-maxdisp = 0.05
+maxdisp = 0.03
 
 # time-stepping parameters
 T = maxdisp / (ldot)
@@ -505,7 +509,8 @@ solver_z.getKSP().setTolerances(rtol=1.0e-7)
 solver_z.getKSP().getPC().setType("lu")
 
 
-vtk_v = io.VTKFile(domain.comm, "Files_DCB/Paraview/2D_DCB.pvd", "a")
+with io.XDMFFile(domain.comm, os.path.join(paraview_dir, "2D_DCB.xdmf"), "w") as file_results:
+        file_results.write_mesh(domain)
 
 while t-stepsize < T:
 
@@ -576,18 +581,17 @@ while t-stepsize < T:
     if rank==0:
         print(Fx)
         print(z_x)
-        with open('Files_DCB/Elastic_phasefield_DCB2D.txt', 'a') as rfile:
+        with open(os.path.join(output_dir, 'Elastic_phasefield_DCB2D.txt'), 'a') as rfile:
             rfile.write("%s %s %s %s %s\n" % (str(t), str(t/T*maxdisp), str(zmin), str(z_x), str(Fx)))
 
 
 
 
     if step % printsteps2==0:
-        uplot.x.array[:] = (local_project(u, Vplot)).x.array
-        vtk_v.write_function([uplot, z], t)
+        file_results.write_function(u, t)
+        file_results.write_function(z, t)
         
 
     # time stepping
     step+=1
     t+=stepsize
-vtk_v.close()
