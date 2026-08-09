@@ -9,7 +9,7 @@ import numpy as np
 from petsc4py.PETSc import ScalarType
 import os
 base_dir = os.getcwd()
-output_dir = os.path.join(base_dir, "Files_DCB")
+output_dir = os.path.join(base_dir, "Files_Uniaxial")
 paraview_dir = os.path.join(output_dir, "Paraview")
 os.makedirs(paraview_dir, exist_ok=True)
 from petsc4py import PETSc
@@ -32,10 +32,11 @@ Whs = shs**2/(2*kappa)
 
 
 
+#Irwin characteristic length
 lch=3*Gc*E/8/(sts**2)
 #The regularization length
 eps = 0.16
-h = 0.05
+h = eps/5
 
 
 
@@ -46,90 +47,39 @@ log.set_log_level(log.LogLevel.ERROR)
 
 #Geometry
 
-# Parameters for the outer rectangle
 
-
-L1 = 1.5
-L2 = 50
-L = L1 + L2
-
-H = 10
-B = 2.5/2
-
-x_cyl = L1
-y_cyl = H/3
-z_cyl = B
-r_cyl = B / 4
-
-ac = 25
-ac += L1
+L = 4 # Length of the outer rectangle
+H = 15  # Height of the outer rectangle
 
 
 
 
 gmsh.initialize()
     
-gmsh.model.add("DCB")
+gmsh.model.add("Uniaxial")
 
 
 # Create outer box
-block = gmsh.model.occ.addRectangle(0, 0, 0, L, H)
+block = gmsh.model.occ.addRectangle(-L/2, -H/2, 0, L, H)
 
-# Create inner cylinder (same axis, smaller radius)
-inner_cyl = gmsh.model.occ.addDisk(x_cyl, y_cyl, 0, r_cyl, r_cyl)
-
-# Cut inner cylinder from outer cylinder to form a tube
-dcb, _ = gmsh.model.occ.cut([(2, block)], [(2, inner_cyl)])
-
+pt1 = gmsh.model.occ.addPoint(0, 0, 0)
 # Synchronize to reflect the changes in the model
 gmsh.model.occ.synchronize()
 
+
 # Add physical group for the volume (the tube itself)
-dcb_volumes = [entity[1] for entity in dcb]
-dcb_group = gmsh.model.addPhysicalGroup(2, dcb_volumes)
-gmsh.model.setPhysicalName(2, dcb_group, "dcbVolume")
-
-
-# Define mesh size fields
-field_id = gmsh.model.mesh.field.add("Box")
-gmsh.model.mesh.field.setNumber(field_id, "VIn", h)
-gmsh.model.mesh.field.setNumber(field_id, "VOut", 4 * h)
-gmsh.model.mesh.field.setNumber(field_id, "XMin", ac - 2*eps)
-gmsh.model.mesh.field.setNumber(field_id, "XMax", L)
-gmsh.model.mesh.field.setNumber(field_id, "YMin",0)
-gmsh.model.mesh.field.setNumber(field_id, "YMax", H/3)
+dcb_group = gmsh.model.addPhysicalGroup(2, [block])
+gmsh.model.setPhysicalName(2, dcb_group, "block")
 
 
 
-field2_id = gmsh.model.mesh.field.add("Box")
-gmsh.model.mesh.field.setNumber(field2_id, "VIn", 2 * h)
-gmsh.model.mesh.field.setNumber(field2_id, "VOut", 4 * h)
-gmsh.model.mesh.field.setNumber(field2_id, "XMin", 0)
-gmsh.model.mesh.field.setNumber(field2_id, "XMax", L)
-gmsh.model.mesh.field.setNumber(field2_id, "YMin", 0)
-gmsh.model.mesh.field.setNumber(field2_id, "YMax", H/2)
-
-
-field3_id = gmsh.model.mesh.field.add("Box")
-gmsh.model.mesh.field.setNumber(field3_id, "VIn", 2* h)
-gmsh.model.mesh.field.setNumber(field3_id, "VOut", 4 * h)
-gmsh.model.mesh.field.setNumber(field3_id, "XMin", x_cyl - 1.1*r_cyl)
-gmsh.model.mesh.field.setNumber(field3_id, "XMax", x_cyl + 1.1*r_cyl)
-gmsh.model.mesh.field.setNumber(field3_id, "YMin", y_cyl - 1.1*r_cyl)
-gmsh.model.mesh.field.setNumber(field3_id, "YMax", y_cyl + 1.1*r_cyl)
-
-
-
-
-# Combine the fields
-min_field_id = gmsh.model.mesh.field.add("Min")
-gmsh.model.mesh.field.setNumbers(min_field_id, "FieldsList", [field_id, field2_id, field3_id])
-gmsh.model.mesh.field.setAsBackgroundMesh(min_field_id)
-
+# set mesh size h for all points equal to h
+gmsh.model.mesh.setSize(gmsh.model.getEntities(0), h)
 
 # Generate and optimize the mesh
 gmsh.model.mesh.generate(2)
 gmsh.model.mesh.optimize("Netgen")
+
 
 
 model = MPI.COMM_WORLD.bcast(gmsh.model, root=0)
@@ -141,7 +91,8 @@ gmsh.finalize()
 domain = mesh_data[0]
 
 
-with dolfinx.io.XDMFFile(domain.comm, "refined_mesh_DCB.xdmf", "w") as xdmf:
+
+with dolfinx.io.XDMFFile(domain.comm, "refined_mesh_Uniaxial.xdmf", "w") as xdmf:
     xdmf.write_mesh(domain)
 
 
@@ -152,76 +103,56 @@ Y = fem.functionspace(domain, ("CG", 1))                                        
 
 
 
+def top(x):
+    return np.isclose(x[1], H/2)
+
 def bottom(x):
-    return (x[1]<1e-4) & (x[0]>ac - 1e-4)
-
-def cracktip(x):
-    return np.logical_and.reduce((
-        x[1] < 1e-4,
-        x[0] > ac - eps,
-        x[0] < ac + h
-    ))
-
-
-
-def ring(x):
-    return np.logical_and(
-        np.isclose((x[0] - x_cyl)**2 + (x[1] - y_cyl)**2, r_cyl**2),
-        x[1] > y_cyl
-    )
-
+    return np.isclose(x[1], -H/2)
 
 def corner(x):
-    return (x[1]<1e-4) & (np.isclose(x[0],L))
-
-def outer(x):
-    return (x[0] < x_cyl + r_cyl + 1e-4)
+    return np.logical_and(np.isclose(x[0], -L/2), np.isclose(x[1], -H/2))
 
 fdim = domain.topology.dim -1
 
+top_facets = mesh.locate_entities_boundary(domain, fdim, top)
 bottom_facets = mesh.locate_entities_boundary(domain, fdim, bottom)
-cracktip_facets = mesh.locate_entities_boundary(domain, fdim, cracktip)
-
 corner_facets = mesh.locate_entities_boundary(domain, 0, corner)
 
 
-ring_facets = mesh.locate_entities_boundary(domain, fdim, ring)
-outer_facets = mesh.locate_entities(domain, fdim, outer)
 
+dofs_top0 =fem.locate_dofs_topological(V.sub(0), fdim, top_facets)
+dofs_top1 =fem.locate_dofs_topological(V.sub(1), fdim, top_facets)
 
-
-dofs_bottom0 = fem.locate_dofs_topological(V.sub(0), fdim, bottom_facets)
-dofs_bottom1 = fem.locate_dofs_topological(V.sub(1), fdim, bottom_facets)
-
-dofs_ring0 = fem.locate_dofs_topological(V.sub(0), fdim, ring_facets)
-dofs_ring1 = fem.locate_dofs_topological(V.sub(1), fdim, ring_facets)
+dofs_bottom0 =fem.locate_dofs_topological(V.sub(0), fdim, bottom_facets)
+dofs_bottom1 =fem.locate_dofs_topological(V.sub(1), fdim, bottom_facets)
 
 dofs_corner0 = fem.locate_dofs_topological(V.sub(0), 0, corner_facets)
 dofs_corner1 = fem.locate_dofs_topological(V.sub(1), 0, corner_facets)
 
-dofs_outer = fem.locate_dofs_topological(Y, fdim, outer_facets)
-dofs_cracktip = fem.locate_dofs_topological(Y, fdim, cracktip_facets)
 
-bcb = fem.dirichletbc(ScalarType(0), dofs_bottom1, V.sub(1))
-bcr = fem.dirichletbc(ScalarType(0), dofs_ring0, V.sub(0))
-bct = fem.dirichletbc(ScalarType(0), dofs_ring1, V.sub(1))
+bc_top0 = fem.dirichletbc(ScalarType(0), dofs_top0, V.sub(0))
+bc_top1 = fem.dirichletbc(ScalarType(0), dofs_top1, V.sub(1))
 
-bccorner0 = fem.dirichletbc(ScalarType(0), dofs_corner0, V.sub(0))
+bc_bottom0 = fem.dirichletbc(ScalarType(0), dofs_bottom0, V.sub(0))
+bc_bottom1 = fem.dirichletbc(ScalarType(0), dofs_bottom1, V.sub(1))
 
-
-
-bcs = [bcb, bct, bccorner0]
+bc_corner0 = fem.dirichletbc(ScalarType(0), dofs_corner0, V.sub(0))
+bc_corner1 = fem.dirichletbc(ScalarType(0), dofs_corner1, V.sub(1))
 
 
-bct_z = fem.dirichletbc(ScalarType(1), dofs_outer, Y)
-bct_z2 = fem.dirichletbc(ScalarType(0), dofs_cracktip, Y)
-bcs_z = [bct_z, bct_z2]
+bcs = [bc_top1, bc_bottom1, bc_corner0]
+
+
+bcs_z_top = fem.dirichletbc(ScalarType(1), fem.locate_dofs_topological(Y, fdim, top_facets), Y)
+bcs_z_bottom = fem.dirichletbc(ScalarType(1), fem.locate_dofs_topological(Y, fdim, bottom_facets), Y)
+
+
+bcs_z = [bcs_z_top, bcs_z_bottom]
 
 
 
-marked_facets = np.hstack([ring_facets, bottom_facets])
-marked_values = np.hstack([np.full_like(ring_facets, 1),
-                           np.full_like(bottom_facets, 2)])
+marked_facets = np.hstack([top_facets, bottom_facets])
+marked_values = np.hstack([np.full_like(top_facets, 1), np.full_like(bottom_facets, 2)])
 sorted_facets = np.argsort(marked_facets)
 facet_tag = mesh.meshtags(domain, domain.topology.dim -1,
                           marked_facets[sorted_facets],
@@ -361,8 +292,90 @@ def evaluate_function(u, x):
 
 
 W0 = fem.functionspace(domain, ("P", 1))
+DG_zero = fem.functionspace(domain, ("DG", 0))                                    #Function space for external phase-field force constants
 
 
+seed = 613
+gdim = domain.geometry.dim
+patchsize = eps*4
+
+# Global mesh bounds
+x_local = domain.geometry.x
+mins_local = x_local.min(axis=0)
+maxs_local = x_local.max(axis=0)
+mins = np.array([comm.allreduce(mins_local[i], op=MPI.MIN) for i in range(gdim)], dtype=np.float64)
+maxs = np.array([comm.allreduce(maxs_local[i], op=MPI.MAX) for i in range(gdim)], dtype=np.float64)
+
+nx = max(1, int(np.ceil((maxs[0] - mins[0]) / patchsize)))
+ny = max(1, int(np.ceil((maxs[1] - mins[1]) / patchsize)))
+nz = max(1, int(np.ceil((maxs[2] - mins[2]) / patchsize))) if gdim == 3 else None
+
+sts_array = np.array([1, 1.05, 1.1], dtype=np.float64)
+if comm_rank == 0:
+    rng = np.random.default_rng(seed)
+    if gdim == 3:
+        patch_ids = rng.integers(0, len(sts_array), size=(nx, ny, nz)).astype(np.int64)
+    else:
+        patch_ids = rng.integers(0, len(sts_array), size=(nx, ny)).astype(np.int64)
+
+    smooth_steps = 1
+    if smooth_steps > 0:
+        p = patch_ids.astype(np.float64)
+        for _ in range(smooth_steps):
+            pad = np.pad(p, 1, mode="edge")
+            if gdim == 3:
+                p = (
+                    pad[1:-1, 1:-1, 1:-1] +
+                    pad[2:,   1:-1, 1:-1] + pad[:-2,  1:-1, 1:-1] +
+                    pad[1:-1, 2:,   1:-1] + pad[1:-1, :-2,  1:-1] +
+                    pad[1:-1, 1:-1, 2:  ] + pad[1:-1, 1:-1, :-2 ]
+                ) / 7.0
+            else:
+                p = (
+                    pad[1:-1, 1:-1] +
+                    pad[2:,   1:-1] + pad[:-2,  1:-1] +
+                    pad[1:-1, 2:  ] + pad[1:-1, :-2]
+                ) / 5.0
+        patch_ids = np.clip(np.rint(p), 0, len(sts_array) - 1).astype(np.int64)
+else:
+    rng = np.random.default_rng(seed)
+    patch_ids = None
+
+patch_ids = comm.bcast(patch_ids, root=0)
+
+
+def _patch_ids(x):
+    ix = np.floor((x[0] - mins[0]) / patchsize).astype(np.int64)
+    iy = np.floor((x[1] - mins[1]) / patchsize).astype(np.int64)
+
+    ix = np.clip(ix, 0, nx - 1)
+    iy = np.clip(iy, 0, ny - 1)
+
+    if gdim == 3:
+        iz = np.floor((x[2] - mins[2]) / patchsize).astype(np.int64)
+        iz = np.clip(iz, 0, nz - 1)
+        return patch_ids[ix, iy, iz]
+
+    return patch_ids[ix, iy]
+
+
+
+def multiplier(x):
+    values = np.zeros((1, x.shape[1]), dtype=np.float64)
+    values[0, :] = sts_array[_patch_ids(x)]
+    return values
+
+sts_variation = fem.Function(DG_zero)
+sts_variation.interpolate(multiplier)
+
+
+
+with io.XDMFFile(domain.comm, "stochastic.xdmf", "w") as xdmf:
+    xdmf.write_mesh(domain)
+    sts_variation.name = "sts_variation"
+    xdmf.write_function(sts_variation)
+
+sts *= sts_variation
 
 # Stored energy, strain and stress functions in linear isotropic elasticity (plane stress)
 
@@ -448,13 +461,13 @@ class NonlinearPDEProblem:
 
 # time-stepping parameters
 ldot = 5*10**(-1)
-maxdisp = 0.03
+maxdisp = H*0.0007
 
 # time-stepping parameters
 T = maxdisp / (ldot)
 
 
-Totalsteps = 40
+Totalsteps = 10
 startstepsize=T/Totalsteps
 stepsize=startstepsize
 t=stepsize
@@ -508,7 +521,8 @@ solver_z.getKSP().setTolerances(rtol=1.0e-7)
 solver_z.getKSP().getPC().setType("lu")
 
 
-with io.XDMFFile(domain.comm, os.path.join(paraview_dir, "2D_DCB.xdmf"), "w") as file_results:
+
+with io.XDMFFile(domain.comm, os.path.join(paraview_dir, "2D_Uniaxial.xdmf"), "w") as file_results:
         file_results.write_mesh(domain)
 
 while t-stepsize < T:
@@ -517,7 +531,7 @@ while t-stepsize < T:
         print('Step= %d' %step, 't= %f' %t, 'Stepsize= %e' %stepsize)
 
 
-    bct.g.value[...] = ScalarType(t/T*maxdisp)
+    bc_top1.g.value[...] = ScalarType(t/T*maxdisp)
 
     stag_iter = 1
     stag_iter = 1
@@ -571,17 +585,17 @@ while t-stepsize < T:
 
     # Calculate Reaction
 
-    Fx = -domain.comm.allreduce(np.sum(fint[dofs_ring1]), op=MPI.SUM)
+    Fx = -domain.comm.allreduce(np.sum(fint[dofs_top1]), op=MPI.SUM)
     
-    z_x = evaluate_function(z, (ac + eps, 0))[0]
+    z_x = evaluate_function(z, (0, 0, 0))[0]
 
 
 
     if rank==0:
         print(Fx)
         print(z_x)
-        with open(os.path.join(output_dir, 'Elastic_phasefield_DCB2D.txt'), 'a') as rfile:
-            rfile.write("%s %s %s %s %s\n" % (str(t), str(t/T*maxdisp), str(zmin), str(z_x), str(Fx)))
+        with open(os.path.join(output_dir, 'Elastic_phasefield_Uniaxial2D.txt'), 'a') as rfile:
+            rfile.write("%s %s %s %s %s\n" % (str(t), str(t/T*maxdisp), str(zmin), str(z_x), str(Fx/L)))
 
 
 
