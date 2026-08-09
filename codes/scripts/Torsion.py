@@ -34,7 +34,7 @@ h = 0.015
 delta = (1+3*h/(8*eps))**(-2) * ((sts + (1+2*np.sqrt(3))*shs)/((8+3*np.sqrt(3))*shs)) * 3*Gc/(16*Wts*eps) + (1+3*h/(8*eps))**(-1) * (2/5)
 
 
-#Geometry
+#Geometry of the tube
 
 L = 5
 Rad = 3
@@ -307,7 +307,7 @@ class NonlinearPDEProblem:
 
 # time-stepping parameters
 ldot = 5*10**(-1)
-tau_max = L*0.000154704*5
+tau_max = L*0.00018
 
 T = tau_max / (ldot)
 
@@ -317,7 +317,7 @@ stepsize=startstepsize
 t=stepsize
 step=1
 rtol=1e-9
-printsteps = 10
+printsteps = 20
 
 def update(solver, dx, x):
     x.axpy(-1, dx)
