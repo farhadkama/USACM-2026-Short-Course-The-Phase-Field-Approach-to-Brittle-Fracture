@@ -64,7 +64,7 @@ domain.topology.create_connectivity(0, domain.topology.dim)
 V = fem.functionspace(domain, ("CG", 1, (domain.geometry.dim,)))                  #Function space for u
 Y = fem.functionspace(domain, ("CG", 1))                                          #Function space for z
 
-maxdisp = -0.0375
+maxdisp = -0.02
 indentor_radius = 1
 
 def left(x):
@@ -306,7 +306,7 @@ stepsize=startstepsize
 t=stepsize
 step=1
 rtol=1e-9
-printsteps = 5
+printsteps = 20
 
 def update(solver, dx, x):
     x.axpy(-1, dx)
@@ -406,7 +406,7 @@ while t-stepsize < T:
 
     if comm_rank==0:
         print(Fx)
-        with open('output.txt', 'a') as rfile:
+        with open('Indentation_results_axisymmetric.txt', 'a') as rfile:
             rfile.write("%s %s  %s\n" % (str(t), str(zmin), str(Fx)))
     if step % printsteps==0:
         with io.XDMFFile(domain.comm, "paraview/2D_axisymmetric_indentation_" + str(step) + ".xdmf", "w") as file_results:
