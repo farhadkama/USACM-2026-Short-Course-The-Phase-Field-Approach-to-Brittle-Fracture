@@ -46,8 +46,7 @@ log.set_log_level(log.LogLevel.ERROR)
 
 #Geometry
 
-# Parameters for the outer rectangle
-
+# Parameters for the DCB specimen
 
 L1 = 1.5
 L2 = 50
@@ -75,16 +74,16 @@ gmsh.model.add("DCB")
 # Create outer box
 block = gmsh.model.occ.addRectangle(0, 0, 0, L, H)
 
-# Create inner cylinder (same axis, smaller radius)
+# Create a hole in the box
 inner_cyl = gmsh.model.occ.addDisk(x_cyl, y_cyl, 0, r_cyl, r_cyl)
 
-# Cut inner cylinder from outer cylinder to form a tube
+# Cut the hole from the box
 dcb, _ = gmsh.model.occ.cut([(2, block)], [(2, inner_cyl)])
 
 # Synchronize to reflect the changes in the model
 gmsh.model.occ.synchronize()
 
-# Add physical group for the volume (the tube itself)
+# Add physical group for the volume
 dcb_volumes = [entity[1] for entity in dcb]
 dcb_group = gmsh.model.addPhysicalGroup(2, dcb_volumes)
 gmsh.model.setPhysicalName(2, dcb_group, "dcbVolume")
