@@ -32,7 +32,7 @@ Whs = shs**2/(2*kappa)
 
 
 
-#Irwin characteristic length
+
 lch=3*Gc*E/8/(sts**2)
 #The regularization length
 eps = 0.16
@@ -45,7 +45,7 @@ comm = MPI.COMM_WORLD
 comm_rank = MPI.COMM_WORLD.rank
 log.set_log_level(log.LogLevel.ERROR)
 
-#Geometry
+#Geometry of the uniaxial test
 
 
 L = 4 # Length of the outer rectangle
@@ -295,9 +295,9 @@ W0 = fem.functionspace(domain, ("P", 1))
 DG_zero = fem.functionspace(domain, ("DG", 0))                                    #Function space for external phase-field force constants
 
 
-seed = 613
+seed = 65
 gdim = domain.geometry.dim
-patchsize = eps*4
+patchsize = 0.45
 
 # Global mesh bounds
 x_local = domain.geometry.x
@@ -461,13 +461,13 @@ class NonlinearPDEProblem:
 
 # time-stepping parameters
 ldot = 5*10**(-1)
-maxdisp = H*0.0007
+maxdisp = 0.00859
 
 # time-stepping parameters
 T = maxdisp / (ldot)
 
 
-Totalsteps = 10
+Totalsteps = 40
 startstepsize=T/Totalsteps
 stepsize=startstepsize
 t=stepsize
@@ -475,7 +475,7 @@ step=1
 rnorm_stag0 = 1
 rnorm_stag = 1
 printsteps = 100
-printsteps2 = 1
+printsteps2 = 10
 
 
 

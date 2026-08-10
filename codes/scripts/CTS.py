@@ -124,7 +124,8 @@ gmsh.finalize()
 domain = mesh_data[0]
 
 
-with dolfinx.io.XDMFFile(domain.comm, "refined_mesh.xdmf", "w") as xdmf:
+
+with dolfinx.io.XDMFFile(domain.comm, "refined_mesh_CTS.xdmf", "w") as xdmf:
     xdmf.write_mesh(domain)
 
 if model_type == "AT1":

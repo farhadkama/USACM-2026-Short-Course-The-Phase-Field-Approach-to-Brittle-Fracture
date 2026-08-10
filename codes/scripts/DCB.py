@@ -453,7 +453,7 @@ maxdisp = 0.03
 T = maxdisp / (ldot)
 
 
-Totalsteps = 40
+Totalsteps = 500
 startstepsize=T/Totalsteps
 stepsize=startstepsize
 t=stepsize
@@ -461,7 +461,7 @@ step=1
 rnorm_stag0 = 1
 rnorm_stag = 1
 printsteps = 100
-printsteps2 = 1
+printsteps2 = 20
 
 
 
